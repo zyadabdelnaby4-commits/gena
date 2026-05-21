@@ -124,7 +124,7 @@ function initTeacherMap() {
 
   // Add marker for school/center location
   L.marker([centerLat, centerLon]).addTo(teacherMap)
-    .bindPopup('EduCenter')
+    .bindPopup('EASYTALK')
     .openPopup();
 }
 

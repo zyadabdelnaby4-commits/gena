@@ -771,15 +771,15 @@ function printCenterPoster() {
       </head>
       <body>
         <div class="card">
-          <h1>Welcome to EduCenter</h1>
+          <h1>Welcome to EASYTALK</h1>
           <div class="subtitle">Teacher GPS Check-in Portal</div>
           
           <div class="qr-container">
-            <img class="qr-image" src="\${qrUrl}" alt="EduCenter Portal QR">
+            <img class="qr-image" src="${qrUrl}" alt="EASYTALK Portal QR">
           </div>
           
           <div style="margin: 15px 0;">
-            <code style="background:#f1f5f9; padding: 6px 12px; border-radius: 8px; font-size: 0.9rem; color:#4f46e5;">\${teacherUrl}</code>
+            <code style="background:#f1f5f9; padding: 6px 12px; border-radius: 8px; font-size: 0.9rem; color:#4f46e5;">${teacherUrl}</code>
           </div>
 
           <div class="instructions" style="direction: ltr;">
@@ -793,7 +793,7 @@ function printCenterPoster() {
           </div>
           
           <div class="footer">
-            Powered by EduCenter Attendance System
+            Powered by EASYTALK Attendance System
           </div>
         </div>
         
@@ -1037,7 +1037,7 @@ function exportAttendanceToCSV() {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.setAttribute('href', url);
-  link.setAttribute('download', `EduCenter_Attendance_Report_${new Date().toISOString().slice(0, 10)}.csv`);
+  link.setAttribute('download', `EASYTALK_Attendance_Report_${new Date().toISOString().slice(0, 10)}.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -1242,7 +1242,7 @@ async function printTeacherInvoice() {
             <table class="header-table">
               <tr>
                 <td>
-                  <div class="title">EduCenter</div>
+                  <div class="title">EASYTALK</div>
                   <p style="color:#64748b; margin: 4px 0;">Teacher Payout Ledger Statement</p>
                 </td>
                 <td class="meta-info">
@@ -1295,8 +1295,8 @@ async function printTeacherInvoice() {
             </table>
 
             <div class="footer">
-              Thank you for being a part of EduCenter Faculty team.<br>
-              Generated automatically by EduCenter Management System.
+              Thank you for being a part of EASYTALK Faculty team.<br>
+              Generated automatically by EASYTALK Management System.
             </div>
           </div>
           
@@ -1355,7 +1355,7 @@ function openLocationMap(teacherName, userLat, userLon, centerLat, centerLon, ce
       fillOpacity: 0.15
     }).addTo(viewMapInstance);
 
-    viewMapMarker = L.marker([centerLat, centerLon]).addTo(viewMapInstance).bindPopup('EduCenter');
+    viewMapMarker = L.marker([centerLat, centerLon]).addTo(viewMapInstance).bindPopup('EASYTALK');
 
     const iconColor = reason ? '#ef4444' : '#3b82f6';
     const teacherIcon = L.divIcon({
