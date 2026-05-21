@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - EduCenter Attendance Manager</title>
+  <link rel="stylesheet" href="/css/shared.css">
+  <style>
+    .login-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .login-card {
+      width: 100%;
+      max-width: 440px;
+      padding: 40px;
+      animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    
+    .login-header {
+      text-align: center;
+      margin-bottom: 35px;
+    }
+    
+    .login-logo {
+      font-size: 2.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+    
+    .login-subtitle {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+    
+    .login-btn {
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .demo-credentials {
+      margin-top: 25px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .demo-credentials code {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--color-secondary);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Theme Toggle Floating Button -->
+  <div style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
+    <button type="button" onclick="toggleTheme()" class="btn btn-secondary" style="padding: 8px 12px; font-size: 0.85rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.05);" title="Toggle Light/Dark Theme" id="themeToggleBtn">
+      🌙
+    </button>
+  </div>
+
+  <div class="login-container">
+    <div class="glass-panel login-card">
+      <div class="login-header">
+        <h1 class="login-logo">EduCenter</h1>
+        <p class="login-subtitle">Attendance & Payout Portal</p>
+      </div>
+      
+      <form id="loginForm" onsubmit="handleLoginSubmit(event)">
+        <div class="form-group">
+          <label class="form-label" for="username">Username</label>
+          <input type="text" id="username" class="form-input" placeholder="Enter your username" required autocomplete="username">
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <input type="password" id="password" class="form-input" placeholder="••••••••" required autocomplete="current-password">
+        </div>
+        
+        <button type="submit" class="btn btn-primary login-btn">Sign In</button>
+      </form>
+
+      <div class="demo-credentials">
+        <p style="margin-bottom: 5px;"><strong>💡 Demo Credentials:</strong></p>
+        <p>Admin: <code>admin</code> / <code>admin123</code></p>
+        <p style="margin-top: 4px;">Teacher: <code>teacher1</code> / <code>teacher123</code></p>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/auth.js"></script>
+  <script>
+    // Check if session is already active
+    (async () => {
+      try {
+        const response = await fetch('/api/auth/me');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.user) {
+            if (data.user.role === 'admin') {
+              window.location.href = '/admin/index.html';
+            } else if (data.user.role === 'teacher') {
+              window.location.href = '/teacher/index.html';
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Session check failed', e);
+      }
+    })();
+
+    async function handleLoginSubmit(event) {
+      event.preventDefault();
+      const usernameInput = document.getElementById('username');
+      const passwordInput = document.getElementById('password');
+      await Auth.login(usernameInput.value, passwordInput.value);
+    }
+  </script>
+</body>
+</html>

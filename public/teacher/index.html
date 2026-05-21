@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teacher Portal - EduCenter Attendance</title>
+  
+  <!-- Leaflet Map CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="/css/shared.css">
+  <link rel="stylesheet" href="/css/teacher.css">
+</head>
+<body>
+
+  <div class="teacher-layout">
+    <!-- Header -->
+    <header class="teacher-header">
+      <h1 class="teacher-title">Teacher Portal</h1>
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <button type="button" onclick="toggleTheme()" class="btn btn-secondary" style="padding: 8px 12px; font-size: 0.85rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.05);" title="Toggle Light/Dark Theme" id="themeToggleBtn">
+          🌙
+        </button>
+        <button class="btn btn-secondary" style="padding: 8px 16px; font-size: 0.85rem; height: 38px; display: flex; align-items: center;" onclick="Auth.logout()">Logout</button>
+      </div>
+    </header>
+
+    <!-- Profile Details Card -->
+    <div class="glass-panel teacher-profile-card">
+      <h3 id="tProfileName">Loading Profile...</h3>
+      <div class="profile-details">
+        <div class="profile-item">
+          <span class="profile-label">Phone</span>
+          <span class="profile-value" id="tProfilePhone">-</span>
+        </div>
+        <div class="profile-item">
+          <span class="profile-label">Session Rate</span>
+          <span class="profile-value" id="tProfileRate">$0.00</span>
+        </div>
+        <div class="profile-item">
+          <span class="profile-label">Schedule</span>
+          <span class="profile-value" id="tProfilePayment" style="text-transform: capitalize;">-</span>
+        </div>
+        <div class="profile-item">
+          <span class="profile-label">Last Payout</span>
+          <span class="profile-value" id="tProfileLastPayment">N/A</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Session Status Banner -->
+    <div class="status-banner checked-out" id="activeStatusBanner">
+      Status: Loading session status...
+    </div>
+
+    <!-- Map & GPS Status Card -->
+    <div class="glass-panel" style="display:flex; flex-direction:column; overflow:hidden;">
+      <div class="gps-indicator-bar">
+        <div>
+          <span class="gps-dot" id="gpsStatusDot"></span>
+          <span id="gpsStatusText" style="font-weight: 500; color: var(--text-secondary);">Initializing Geolocation...</span>
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-muted);" id="gpsAccuracy">±0m</div>
+      </div>
+      <div class="map-container">
+        <div id="teacherMap"></div>
+      </div>
+      <!-- Distance visual progress bar -->
+      <div id="distanceProgressContainer" style="padding: 12px 16px; border-top: 1px solid var(--glass-border); background: rgba(255, 255, 255, 0.02); display: none;">
+        <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 6px;">
+          <span style="color: var(--text-muted);">Distance to Center:</span>
+          <strong id="distanceTextVal" style="color: var(--text-primary);">Calculating...</strong>
+        </div>
+        <div style="height: 6px; background: rgba(0, 0, 0, 0.1); border-radius: 3px; overflow: hidden;">
+          <div id="distanceProgressBar" style="width: 0%; height: 100%; background: var(--color-success); transition: width 0.4s ease, background-color 0.4s ease;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dynamic Actions Section -->
+    <div class="attendance-actions">
+      <!-- 1. Check In Panel -->
+      <div id="checkinPanel" style="display: none; display: flex; flex-direction: column; gap: 12px;">
+        <button class="btn btn-success big-action-btn" id="checkinBtn" onclick="performCheckin()" disabled>
+          <span>📌</span> Register Attendance (GPS)
+        </button>
+        
+        <button class="btn btn-secondary big-action-btn" style="background:#8b5cf6; border:none;" id="qrScanBtn" onclick="toggleQrScanner()">
+          <span>📷</span> Scan Center QR Code
+        </button>
+        
+        <!-- Live Camera Viewport -->
+        <div id="qrReader" style="width: 100%; max-width: 320px; margin: 0 auto; display: none; border-radius: 12px; overflow: hidden; border: 1px solid var(--glass-border); box-shadow: 0 4px 16px rgba(0,0,0,0.3);"></div>
+        
+        <p style="text-align: center; font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">
+          Note: You must be inside the center to check in. If GPS accuracy is poor, scan the admin QR code.
+        </p>
+      </div>
+
+      <!-- 2. Check Out Panel -->
+      <div class="glass-panel checkout-panel" id="checkoutPanel" style="display: none;">
+        <div class="checkout-title">🔒 Log Completed Sessions</div>
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="form-label" for="sessionsCount">Number of Sessions Taught Today</label>
+          <input type="number" id="sessionsCount" class="form-input" min="0" max="10" value="1" required>
+        </div>
+        <button class="btn btn-danger big-action-btn" id="checkoutBtn" onclick="performCheckout()">
+          <span>🏁</span> Check Out
+        </button>
+      </div>
+    </div>
+
+    <!-- Personal Earnings Summary -->
+    <div class="earnings-grid">
+      <div class="glass-panel earnings-card">
+        <span class="profile-label">Earnings (Today)</span>
+        <span class="earnings-value" id="earningsToday">$0.00</span>
+        <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;" id="sessionsToday">0 lectures</span>
+      </div>
+      <div class="glass-panel earnings-card">
+        <span class="profile-label">Earnings (Month)</span>
+        <span class="earnings-value" id="earningsMonth">$0.00</span>
+        <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;" id="sessionsMonth">0 lectures</span>
+      </div>
+      <div class="glass-panel earnings-card" style="border-image: linear-gradient(135deg, rgba(168, 85, 247, 0.4), rgba(99, 102, 241, 0.1)) 1;">
+        <span class="profile-label">Earnings (Year)</span>
+        <span class="earnings-value" id="earningsYear" style="color: #a855f7;">$0.00</span>
+        <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;" id="sessionsYear">0 lectures</span>
+      </div>
+    </div>
+
+    <!-- Personal Payouts & Adjustments Ledger -->
+    <div class="glass-panel" style="margin-top: 20px; padding: 20px;">
+      <h3 style="font-size: 1.1rem; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+        <span>💵</span> Financial Ledger & Payout History
+      </h3>
+      <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; text-align: left;">
+          <thead>
+            <tr style="border-bottom: 1px solid var(--glass-border); color: var(--text-muted);">
+              <th style="padding: 10px 5px;">Date</th>
+              <th style="padding: 10px 5px;">Type</th>
+              <th style="padding: 10px 5px;">Amount</th>
+              <th style="padding: 10px 5px;">Status</th>
+              <th style="padding: 10px 5px;">Description</th>
+            </tr>
+          </thead>
+          <tbody id="ledgerTableBody">
+            <tr>
+              <td colspan="5" style="padding: 20px 5px; text-align: center; color: var(--text-muted);">
+                Loading ledger records...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- HTML5 QR Code Library -->
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <!-- Leaflet Map JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- Auth & Teacher Portal Scripts -->
+  <script src="/js/auth.js"></script>
+  <script src="/js/teacher.js"></script>
+</body>
+</html>

@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - EduCenter Manager</title>
+  
+  <!-- Leaflet Map CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="/css/shared.css">
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+
+  <div class="admin-layout">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar no-print" id="sidebar">
+      <div class="sidebar-logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="url(#logoGrad)" stroke="var(--color-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M2 17L12 22L22 17" stroke="var(--color-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M2 12L12 17L22 12" stroke="var(--color-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <defs>
+            <linearGradient id="logoGrad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="var(--color-primary)"/>
+              <stop offset="100%" stop-color="var(--color-secondary)"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <span>EduCenter</span>
+      </div>
+      
+      <ul class="nav-menu">
+        <li class="nav-item">
+          <a class="nav-link active" onclick="switchTab('dashboard', this)">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+            Dashboard
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" onclick="switchTab('teachers', this)">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            Teachers
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" onclick="switchTab('settings', this); initSettingsMap();">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            Center Location
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" onclick="switchTab('attendance', this)">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+            Attendance Logs
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" onclick="switchTab('security', this)">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            Spoof Logs
+          </a>
+        </li>
+      </ul>
+      
+      <div class="sidebar-footer">
+        <a class="nav-link" onclick="Auth.logout()">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+          Log Out
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main Content Panel -->
+    <main class="main-content">
+      <header class="page-header no-print">
+        <div>
+          <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+          <h1 id="pageTitle">Admin Dashboard</h1>
+        </div>
+        <div class="user-info">
+          <!-- Theme Toggle Switcher -->
+          <button type="button" onclick="toggleTheme()" class="btn btn-secondary" style="padding: 8px 12px; font-size: 0.85rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.05);" title="Toggle Light/Dark Theme" id="themeToggleBtn">
+            🌙
+          </button>
+          <span class="user-avatar" id="adminInitial">A</span>
+          <div>
+            <div id="adminName" style="font-weight: 600;">Administrator</div>
+            <div style="font-size: 0.8rem; color: var(--text-muted);">Role: Head Admin</div>
+          </div>
+        </div>
+      </header>
+
+      <!-- 1. DASHBOARD TAB -->
+      <section id="dashboardTab" class="tab-content active">
+        <div class="stats-grid">
+          <div class="glass-panel stat-card">
+            <div class="stat-header">
+              <span>Teachers Present</span>
+              <span style="color: var(--color-primary);">👥</span>
+            </div>
+            <div class="stat-value" id="statPresentToday">0</div>
+            <div class="stat-trend trend-up">Active at center today</div>
+          </div>
+          
+          <div class="glass-panel stat-card">
+            <div class="stat-header">
+              <span>Sessions Today</span>
+              <span style="color: var(--color-secondary);">📚</span>
+            </div>
+            <div class="stat-value" id="statSessionsToday">0</div>
+            <div class="stat-trend trend-up">Lectures completed today</div>
+          </div>
+          
+          <div class="glass-panel stat-card">
+            <div class="stat-header">
+              <span>Today's Payouts</span>
+              <span style="color: var(--color-success);">💵</span>
+            </div>
+            <div class="stat-value" id="statEarningsToday">$0.00</div>
+            <div class="stat-trend trend-up">Accrued today</div>
+          </div>
+          
+          <div class="glass-panel stat-card">
+            <div class="stat-header">
+              <span>Month Payouts</span>
+              <span style="color: var(--color-success);">📊</span>
+            </div>
+            <div class="stat-value" id="statEarningsMonth">$0.00</div>
+            <div class="stat-trend trend-up" id="monthTrend">This month</div>
+          </div>
+          
+          <div class="glass-panel stat-card">
+            <div class="stat-header">
+              <span>Year Payouts</span>
+              <span style="color: var(--color-success);">⏳</span>
+            </div>
+            <div class="stat-value" id="statEarningsYear">$0.00</div>
+            <div class="stat-trend trend-up" id="yearTrend">This year</div>
+          </div>
+        </div>
+
+        <div class="charts-grid">
+          <div class="glass-panel chart-card">
+            <div class="chart-title">Top Active Teachers (Month)</div>
+            <div style="position: relative; height: 260px;">
+              <canvas id="topTeachersChart"></canvas>
+            </div>
+          </div>
+          <div class="glass-panel chart-card">
+            <div class="chart-title">Last 7 Days Check-ins Trend</div>
+            <div style="position: relative; height: 260px;">
+              <canvas id="attendanceTrendChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- WHO'S IN NOW LIVE WIDGET & QR CODE BUTTON -->
+        <div class="charts-grid" style="margin-top: 20px;">
+          <div class="glass-panel chart-card" style="display: flex; flex-direction: column; grid-column: span 2;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+              <span class="chart-title" style="display: flex; align-items: center; gap: 8px;">
+                <span style="width: 10px; height: 10px; border-radius: 50%; background: #10b981; display: inline-block; animation: pulseLight 1.5s infinite;"></span>
+                Teachers Currently in Center
+              </span>
+              <button class="btn btn-primary" style="padding: 8px 16px; font-size: 0.85rem;" onclick="openQrModal()">
+                🎫 Show Attendance QR Code
+              </button>
+            </div>
+            <div style="flex: 1; overflow-y: auto; max-height: 250px;" id="livePresenceList">
+              <p style="color: var(--text-muted); font-size: 0.9rem; padding: 10px 0;">Loading live presence list...</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. TEACHERS CRUD TAB -->
+      <section id="teachersTab" class="tab-content">
+        <div class="glass-panel" style="padding: 30px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2>Manage Faculty / Teachers</h2>
+            <button class="btn btn-primary" onclick="openTeacherModal()">
+              <span>+</span> Add New Teacher
+            </button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="custom-table" id="teachersTable">
+              <thead>
+                <tr>
+                  <th>Teacher Name</th>
+                  <th>Username</th>
+                  <th>Phone Number</th>
+                  <th>Rate/Session</th>
+                  <th>Payment Type</th>
+                  <th>Unpaid Earnings</th>
+                  <th>Paid Earnings</th>
+                  <th>Sessions Count</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="teachersTableBody">
+                <!-- Injected via javascript -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. CENTER SETTINGS TAB -->
+      <section id="settingsTab" class="tab-content">
+        <div class="settings-grid">
+          <div class="glass-panel settings-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+              <h2 style="margin: 0; font-size: 1.5rem;">Geofencing Setup</h2>
+              <button type="button" class="btn btn-secondary" onclick="printCenterPoster()" style="font-size: 0.8rem; padding: 6px 12px; display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);">
+                🖨️ Print QR Poster
+              </button>
+            </div>
+            <form id="settingsForm" onsubmit="saveGeofenceSettings(event)">
+              <div class="form-group">
+                <label class="form-label" for="centerLat">Latitude</label>
+                <input type="number" step="any" id="centerLat" class="form-input" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="centerLon">Longitude</label>
+                <input type="number" step="any" id="centerLon" class="form-input" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="centerRadius">Radius (Meters)</label>
+                <input type="number" id="centerRadius" class="form-input" required min="10">
+              </div>
+              <button type="button" class="btn btn-secondary" onclick="useCurrentGPSLocation()" style="width: 100%; margin-bottom: 12px; background: #8b5cf6; border: none; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <span>📍</span> Use My Current GPS Location
+              </button>
+              <button type="submit" class="btn btn-primary" style="width: 100%;">Save Coordinates</button>
+            </form>
+            <p style="margin-top: 15px; font-size: 0.85rem; color: var(--text-muted);">
+              💡 Click anywhere on the map to automatically set the latitude and longitude coordinates.
+            </p>
+          </div>
+          <div class="glass-panel" style="padding: 10px;">
+            <div id="map"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. ATTENDANCE LOGS TAB -->
+      <section id="attendanceTab" class="tab-content">
+        <div class="glass-panel" style="padding: 30px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;" class="no-print">
+            <h2>Detailed Attendance Register</h2>
+            <div class="action-buttons">
+              <button class="btn btn-secondary" onclick="exportAttendanceToCSV()">
+                📥 Export Excel CSV
+              </button>
+              <button class="btn btn-primary" onclick="window.print()">
+                🖨️ Print Report
+              </button>
+            </div>
+          </div>
+
+          <!-- Filter Controls Bar -->
+          <div class="glass-panel no-print" style="padding: 15px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end; background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: var(--radius-md);">
+            <div style="flex: 1; min-width: 150px;">
+              <label class="form-label" style="font-size: 0.75rem; margin-bottom: 5px;">Filter by Teacher</label>
+              <select id="filterTeacher" class="form-input" style="height: 38px; padding: 5px 10px;">
+                <option value="">All Teachers</option>
+                <!-- Dynamically populated -->
+              </select>
+            </div>
+            <div style="flex: 1; min-width: 130px;">
+              <label class="form-label" style="font-size: 0.75rem; margin-bottom: 5px;">Start Date</label>
+              <input type="date" id="filterStartDate" class="form-input" style="height: 38px; padding: 5px 10px;">
+            </div>
+            <div style="flex: 1; min-width: 130px;">
+              <label class="form-label" style="font-size: 0.75rem; margin-bottom: 5px;">End Date</label>
+              <input type="date" id="filterEndDate" class="form-input" style="height: 38px; padding: 5px 10px;">
+            </div>
+            <div style="flex: 1; min-width: 130px;">
+              <label class="form-label" style="font-size: 0.75rem; margin-bottom: 5px;">Payment Status</label>
+              <select id="filterPaymentStatus" class="form-input" style="height: 38px; padding: 5px 10px;">
+                <option value="">All Statuses</option>
+                <option value="unpaid">Unpaid / Accruing</option>
+                <option value="paid">Settled / Paid</option>
+              </select>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-primary" onclick="applyAttendanceFilters()" style="height: 38px; padding: 0 15px; font-size: 0.85rem; display: flex; align-items: center; justify-content: center;">🔍 Filter</button>
+              <button class="btn btn-secondary" onclick="clearAttendanceFilters()" style="height: 38px; padding: 0 15px; font-size: 0.85rem; display: flex; align-items: center; justify-content: center;">🔄 Reset</button>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="custom-table" id="attendanceTable">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Teacher</th>
+                  <th>Check In</th>
+                  <th>Check Out</th>
+                  <th>Sessions</th>
+                  <th>Earnings</th>
+                  <th>Status</th>
+                  <th>Spoof Flag</th>
+                  <th>Payment</th>
+                  <th class="no-print">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="attendanceTableBody">
+                <!-- Injected via javascript -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. SECURITY / SPOOF LOGS TAB -->
+      <section id="securityTab" class="tab-content">
+        <div class="glass-panel" style="padding: 30px;">
+          <div style="margin-bottom: 20px;">
+            <h2>Fake GPS & Security Verification Logs</h2>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">
+              Logs showing whenever a teacher attempts to check-in/out outside of the geofenced area or using a fake GPS provider.
+            </p>
+          </div>
+
+          <div class="table-responsive">
+            <table class="custom-table" id="securityTable">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Teacher</th>
+                  <th>Event Type</th>
+                  <th>Submitted Location</th>
+                  <th>Center Location</th>
+                  <th>Flag details</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="securityTableBody">
+                <!-- Injected via javascript -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Teacher Form Dialog Modal -->
+  <div class="modal-overlay" id="teacherModal">
+    <div class="glass-panel modal">
+      <div class="modal-header">
+        <h3 id="modalTitle">Add New Teacher</h3>
+        <button class="modal-close" onclick="closeTeacherModal()">&times;</button>
+      </div>
+      <form id="teacherForm" onsubmit="handleTeacherSubmit(event)">
+        <input type="hidden" id="teacherId">
+        
+        <div class="form-group">
+          <label class="form-label" for="tName">Name</label>
+          <input type="text" id="tName" class="form-input" required placeholder="John Doe">
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label" for="tUsername">Username</label>
+          <input type="text" id="tUsername" class="form-input" required placeholder="john123">
+        </div>
+        
+        <div class="form-group" id="tPasswordGroup">
+          <label class="form-label" for="tPassword">Password</label>
+          <input type="password" id="tPassword" class="form-input" required placeholder="••••••••">
+        </div>
+
+        <div class="form-group" id="tEditPasswordGroup" style="display:none;">
+          <label class="form-label" for="tEditPassword">New Password (Leave blank to keep current)</label>
+          <input type="password" id="tEditPassword" class="form-input" placeholder="••••••••">
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label" for="tPhone">Phone</label>
+          <input type="text" id="tPhone" class="form-input" placeholder="01234567890">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="tRate">Rate per Session ($)</label>
+          <input type="number" step="0.1" id="tRate" class="form-input" required placeholder="50.0">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="tPayment">Payment Schedule</label>
+          <select id="tPayment" class="form-input">
+            <option value="session">Per Session (Accrues upon check-out)</option>
+            <option value="monthly">Monthly Flat-rate</option>
+          </select>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:25px;">
+          <button type="button" class="btn btn-secondary" onclick="closeTeacherModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Teacher</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- QR Code Modal Dialog -->
+  <div class="modal-overlay" id="qrModal">
+    <div class="glass-panel modal" style="max-width: 340px; text-align: center; padding: 25px;">
+      <div class="modal-header" style="border:none; margin-bottom: 10px;">
+        <h3>Center QR Check-In</h3>
+        <button class="modal-close" onclick="closeQrModal()">&times;</button>
+      </div>
+      <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 20px;">
+        Let the teacher scan this daily code from their mobile web portal to bypass GPS geofencing.
+      </p>
+      <div style="background: white; padding: 15px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-bottom: 15px;">
+        <img id="qrCodeImg" src="" alt="Generating QR..." style="width: 220px; height: 220px; display: block;">
+      </div>
+      <div id="qrTokenVal" style="font-size: 0.65rem; color: var(--text-muted); word-break: break-all; max-width: 250px; margin: 0 auto;"></div>
+    </div>
+  </div>
+
+  <!-- Advances & Bonuses Ledger Modal -->
+  <div class="modal-overlay" id="adjustmentsModal">
+    <div class="glass-panel modal" style="max-width: 650px; width: 90%;">
+      <div class="modal-header" style="border-bottom: none; padding-bottom: 5px;">
+        <h3 id="adjustmentsTitle">Teacher Financial Ledger</h3>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <button class="btn btn-secondary" onclick="printTeacherInvoice()" style="padding: 4px 10px; font-size: 0.8rem; height: 32px;">🖨️ Print Invoice</button>
+          <button class="modal-close" onclick="closeAdjustmentsModal()">&times;</button>
+        </div>
+      </div>
+      
+      <!-- Teacher Earnings Breakdown Summary Stats -->
+      <div id="ledgerStatsHeader" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 5px 0 15px 0;">
+        <div class="glass-panel" style="padding: 10px 12px; text-align: center; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: var(--radius-md); transition: transform 0.2s ease, box-shadow 0.2s ease;">
+          <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Today's Earnings</div>
+          <div id="ledgerStatToday" style="font-size: 1.15rem; font-weight: 700; color: var(--color-success);">$0.00</div>
+        </div>
+        <div class="glass-panel" style="padding: 10px 12px; text-align: center; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: var(--radius-md); transition: transform 0.2s ease, box-shadow 0.2s ease;">
+          <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Monthly Earnings</div>
+          <div id="ledgerStatMonth" style="font-size: 1.15rem; font-weight: 700; color: var(--color-primary);">$0.00</div>
+        </div>
+        <div class="glass-panel" style="padding: 10px 12px; text-align: center; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: var(--radius-md); transition: transform 0.2s ease, box-shadow 0.2s ease;">
+          <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Yearly Earnings</div>
+          <div id="ledgerStatYear" style="font-size: 1.15rem; font-weight: 700; color: #a855f7;">$0.00</div>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; padding: 10px 0;" class="ledger-modal-grid">
+        <!-- Left side: Ledger history -->
+        <div>
+          <h4 style="margin-bottom: 10px; font-size: 0.95rem;">Financial Log History</h4>
+          <div style="max-height: 280px; overflow-y: auto; border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 5px;">
+            <table class="custom-table" style="font-size: 0.85rem;" id="adjTable">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="adjustmentsList">
+                <!-- Injected via javascript -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <!-- Right side: Add adjustment form -->
+        <div>
+          <h4 style="margin-bottom: 10px; font-size: 0.95rem;">Record New Adjustment</h4>
+          <form id="adjustmentForm" onsubmit="handleAdjustmentSubmit(event)">
+            <input type="hidden" id="adjTeacherId">
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label class="form-label" for="adjType">Type</label>
+              <select id="adjType" class="form-input" required>
+                <option value="bonus">Bonus (+ Extra Credit)</option>
+                <option value="advance">Cash Advance (- Deduction)</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label class="form-label" for="adjAmount">Amount ($)</label>
+              <input type="number" step="0.01" id="adjAmount" class="form-input" required min="1" placeholder="50.00">
+            </div>
+            <div class="form-group" style="margin-bottom: 15px;">
+              <label class="form-label" for="adjDesc">Note / Description</label>
+              <textarea id="adjDesc" class="form-input" style="height: 60px; resize: none;" placeholder="Provide brief context..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Post to Ledger</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  <!-- Leaflet Location Visualizer Modal -->
+  <div id="locationModal" class="modal-overlay">
+    <div class="glass-panel modal" style="max-width: 600px; width: 90%;">
+      <div class="modal-header">
+        <h3 id="locationModalTitle">Attendance Location Check</h3>
+        <button class="modal-close" onclick="closeLocationModal()">&times;</button>
+      </div>
+      <div style="height: 350px; border-radius: var(--radius-md); border: 1px solid var(--glass-border); overflow: hidden; margin: 15px 0;">
+        <div id="viewMap" style="width:100%; height:100%;"></div>
+      </div>
+      <div style="font-size:0.9rem; color:var(--text-secondary); line-height:1.5; background: rgba(255,255,255,0.02); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--glass-border);" id="locationModalDetails">
+        <!-- Dynamically populated details -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart.js Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Leaflet Map JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- Authentication Control & AJAX Helper -->
+  <script src="/js/auth.js"></script>
+  <script src="/js/admin.js"></script>
+</body>
+</html>
