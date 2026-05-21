@@ -14,7 +14,7 @@ router.post('/login', async (req, res) => {
   }
 
   try {
-    const user = await db.get('SELECT * FROM users WHERE username = ?', [username]);
+    const user = await db.getUserByUsername(username);
     if (!user) {
       return res.status(401).json({ success: false, message: 'Incorrect username or password.' });
     }
@@ -64,10 +64,12 @@ router.post('/logout', (req, res) => {
 // GET /api/auth/me
 router.get('/me', verifyToken, async (req, res) => {
   try {
-    const user = await db.get('SELECT id, username, role, name, phone, rate_per_session, payment_type FROM users WHERE id = ?', [req.user.id]);
+    const user = await db.getUserById(req.user.id);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User session not found.' });
     }
+    // Remove sensitive password hash from response
+    delete user.password;
     res.json({ success: true, user });
   } catch (error) {
     console.error('Get profile error:', error);

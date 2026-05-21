@@ -36,95 +36,36 @@ router.get('/dashboard', async (req, res) => {
   try {
     const teacherId = req.user.id;
     const todayStr = getTodayDateString();
-    const currentMonthPattern = `${todayStr.slice(0, 7)}-%`;
 
     // 1. Get teacher profile
-    const profile = await db.get(`
-      SELECT name, phone, rate_per_session, payment_type, last_received_payment 
-      FROM users 
-      WHERE id = ?
-    `, [teacherId]);
-
+    const profile = await db.getUserById(teacherId);
     if (!profile) {
       return res.status(404).json({ success: false, message: 'Teacher profile not found.' });
     }
 
     // 2. Fetch center geofence
-    const centerLatVal = await db.get("SELECT value FROM settings WHERE key = 'center_lat'");
-    const centerLonVal = await db.get("SELECT value FROM settings WHERE key = 'center_lon'");
-    const centerRadVal = await db.get("SELECT value FROM settings WHERE key = 'center_radius'");
-
+    const settings = await db.getSettings();
     const center = {
-      lat: Number(centerLatVal.value),
-      lon: Number(centerLonVal.value),
-      radius: Number(centerRadVal.value)
+      lat: settings.center_lat,
+      lon: settings.center_lon,
+      radius: settings.center_radius
     };
 
-    // 3. Today's earnings from attendance
-    const todayEarnings = await db.get(`
-      SELECT SUM(earnings) AS total, SUM(sessions_count) AS sessions 
-      FROM attendance 
-      WHERE teacher_id = ? AND date = ?
-    `, [teacherId, todayStr]);
-
-    // Today's adjustments (bonuses and advances paid/unpaid accrued today)
-    const todayAdjustments = await db.get(`
-      SELECT SUM(amount) AS total FROM adjustments
-      WHERE teacher_id = ? AND date = ?
-    `, [teacherId, todayStr]);
-
-    // 4. Monthly earnings (attendance + adjustments)
-    const monthlyAttendance = await db.get(`
-      SELECT SUM(earnings) AS total, SUM(sessions_count) AS sessions 
-      FROM attendance 
-      WHERE teacher_id = ? AND date LIKE ?
-    `, [teacherId, currentMonthPattern]);
-
-    const monthlyAdjustments = await db.get(`
-      SELECT SUM(amount) AS total FROM adjustments
-      WHERE teacher_id = ? AND date LIKE ?
-    `, [teacherId, currentMonthPattern]);
-
-    // 4b. Yearly earnings (attendance + adjustments)
-    const currentYearPattern = `${todayStr.slice(0, 4)}-%`;
-    const yearlyAttendance = await db.get(`
-      SELECT SUM(earnings) AS total, SUM(sessions_count) AS sessions 
-      FROM attendance 
-      WHERE teacher_id = ? AND date LIKE ?
-    `, [teacherId, currentYearPattern]);
-
-    const yearlyAdjustments = await db.get(`
-      SELECT SUM(amount) AS total FROM adjustments
-      WHERE teacher_id = ? AND date LIKE ?
-    `, [teacherId, currentYearPattern]);
-
-    // Calculate final stats
-    const netToday = Number(todayEarnings?.total || 0) + Number(todayAdjustments?.total || 0);
-    const netMonthly = Number(monthlyAttendance?.total || 0) + Number(monthlyAdjustments?.total || 0);
-    const netYearly = Number(yearlyAttendance?.total || 0) + Number(yearlyAdjustments?.total || 0);
+    // 3 & 4. Fetch aggregated stats
+    const stats = await db.getTeacherStats(teacherId, todayStr);
 
     // 5. Active attendance check-in
-    const activeCheckin = await db.get(`
-      SELECT * 
-      FROM attendance 
-      WHERE teacher_id = ? AND status = 'present' 
-      LIMIT 1
-    `, [teacherId]);
+    const activeCheckin = await db.getActiveAttendance(teacherId);
 
     res.json({
       success: true,
       profile,
       center,
       stats: {
-        todayEarnings: netToday,
-        todaySessions: todayEarnings?.sessions || 0,
-        monthlyEarnings: netMonthly,
-        monthlySessions: monthlyAttendance?.sessions || 0,
-        yearlyEarnings: netYearly,
-        yearlySessions: yearlyAttendance?.sessions || 0,
+        ...stats,
         lastReceivedPayment: profile.last_received_payment || 'N/A'
       },
-      activeCheckin: activeCheckin || null
+      activeCheckin
     });
   } catch (error) {
     console.error('Teacher dashboard error:', error);
@@ -142,35 +83,30 @@ router.post('/check-in', async (req, res) => {
   }
 
   try {
-    const activeCheckin = await db.get(`
-      SELECT id FROM attendance WHERE teacher_id = ? AND status = 'present'
-    `, [teacherId]);
-
+    const activeCheckin = await db.getActiveAttendance(teacherId);
     if (activeCheckin) {
       return res.status(400).json({ success: false, message: 'You are already checked in. Please check out first.' });
     }
 
-    const centerLatVal = await db.get("SELECT value FROM settings WHERE key = 'center_lat'");
-    const centerLonVal = await db.get("SELECT value FROM settings WHERE key = 'center_lon'");
-    const centerRadVal = await db.get("SELECT value FROM settings WHERE key = 'center_radius'");
-
-    const centerLat = Number(centerLatVal.value);
-    const centerLon = Number(centerLonVal.value);
-    const radiusLimit = Number(centerRadVal.value);
+    const settings = await db.getSettings();
+    const centerLat = settings.center_lat;
+    const centerLon = settings.center_lon;
+    const radiusLimit = settings.center_radius;
 
     const distance = calculateDistance(lat, lon, centerLat, centerLon);
 
     if (distance > radiusLimit) {
       // Log fake GPS attempt
-      await db.run(`
-        INSERT INTO fake_gps_logs (teacher_id, timestamp, action_type, user_lat, user_lon, center_lat, center_lon, reason)
-        VALUES (?, ?, 'check-in', ?, ?, ?, ?, ?)
-      `, [
-        teacherId,
-        new Date().toISOString(),
-        lat, lon, centerLat, centerLon,
-        `Outside center geofence bounds. Distance: ${distance.toFixed(1)}m`
-      ]);
+      await db.createFakeGpsLog({
+        teacher_id: teacherId,
+        timestamp: new Date().toISOString(),
+        action_type: 'check-in',
+        user_lat: lat,
+        user_lon: lon,
+        center_lat: centerLat,
+        center_lon: centerLon,
+        reason: `Outside center geofence bounds. Distance: ${distance.toFixed(1)}m`
+      });
 
       return res.status(403).json({
         success: false,
@@ -179,24 +115,31 @@ router.post('/check-in', async (req, res) => {
     }
 
     if (accuracy && Number(accuracy) > 200) {
-      await db.run(`
-        INSERT INTO fake_gps_logs (teacher_id, timestamp, action_type, user_lat, user_lon, center_lat, center_lon, reason)
-        VALUES (?, ?, 'check-in-warning', ?, ?, ?, ?, ?)
-      `, [
-        teacherId,
-        new Date().toISOString(),
-        lat, lon, centerLat, centerLon,
-        `Weak GPS accuracy: ${accuracy}m.`
-      ]);
+      await db.createFakeGpsLog({
+        teacher_id: teacherId,
+        timestamp: new Date().toISOString(),
+        action_type: 'check-in-warning',
+        user_lat: lat,
+        user_lon: lon,
+        center_lat: centerLat,
+        center_lon: centerLon,
+        reason: `Weak GPS accuracy: ${accuracy}m.`
+      });
     }
 
     const todayStr = getTodayDateString();
     const timeStr = new Date().toLocaleTimeString('en-US', { hour12: false });
 
-    await db.run(`
-      INSERT INTO attendance (teacher_id, date, check_in_time, check_in_lat, check_in_lon, status, is_fake_gps, check_in_type)
-      VALUES (?, ?, ?, ?, ?, 'present', 0, 'gps')
-    `, [teacherId, todayStr, timeStr, lat, lon]);
+    await db.createAttendance({
+      teacher_id: teacherId,
+      date: todayStr,
+      check_in_time: timeStr,
+      check_in_lat: lat,
+      check_in_lon: lon,
+      status: 'present',
+      is_fake_gps: 0,
+      check_in_type: 'gps'
+    });
 
     res.json({ success: true, message: 'Checked in successfully.' });
   } catch (error) {
@@ -216,21 +159,17 @@ router.post('/check-in/qr', async (req, res) => {
 
   try {
     // 1. Verify not already checked in
-    const activeCheckin = await db.get(`
-      SELECT id FROM attendance WHERE teacher_id = ? AND status = 'present'
-    `, [teacherId]);
-
+    const activeCheckin = await db.getActiveAttendance(teacherId);
     if (activeCheckin) {
       return res.status(400).json({ success: false, message: 'You are already checked in.' });
     }
 
     // 2. Validate token (Match calculated daily token)
-    const lat = await db.get("SELECT value FROM settings WHERE key = 'center_lat'");
-    const lon = await db.get("SELECT value FROM settings WHERE key = 'center_lon'");
+    const settings = await db.getSettings();
     const todayStr = getTodayDateString();
 
     const expectedToken = crypto.createHash('md5')
-      .update(`${lat.value}_${lon.value}_${todayStr}_${JWT_SECRET}`)
+      .update(`${settings.center_lat}_${settings.center_lon}_${todayStr}_${JWT_SECRET}`)
       .digest('hex');
 
     if (qr_token !== expectedToken) {
@@ -242,13 +181,19 @@ router.post('/check-in/qr', async (req, res) => {
 
     // 3. Register check-in, setting coordinates to center coordinates as fallback
     const timeStr = new Date().toLocaleTimeString('en-US', { hour12: false });
-    const cLat = Number(lat.value);
-    const cLon = Number(lon.value);
+    const cLat = settings.center_lat;
+    const cLon = settings.center_lon;
 
-    await db.run(`
-      INSERT INTO attendance (teacher_id, date, check_in_time, check_in_lat, check_in_lon, status, is_fake_gps, check_in_type)
-      VALUES (?, ?, ?, ?, ?, 'present', 0, 'qr_code')
-    `, [teacherId, todayStr, timeStr, cLat, cLon]);
+    await db.createAttendance({
+      teacher_id: teacherId,
+      date: todayStr,
+      check_in_time: timeStr,
+      check_in_lat: cLat,
+      check_in_lon: cLon,
+      status: 'present',
+      is_fake_gps: 0,
+      check_in_type: 'qr_code'
+    });
 
     res.json({
       success: true,
@@ -275,35 +220,30 @@ router.post('/check-out', async (req, res) => {
   }
 
   try {
-    const activeRecord = await db.get(`
-      SELECT * FROM attendance WHERE teacher_id = ? AND status = 'present'
-    `, [teacherId]);
-
+    const activeRecord = await db.getActiveAttendance(teacherId);
     if (!activeRecord) {
       return res.status(400).json({ success: false, message: 'You have not checked in yet.' });
     }
 
-    const centerLatVal = await db.get("SELECT value FROM settings WHERE key = 'center_lat'");
-    const centerLonVal = await db.get("SELECT value FROM settings WHERE key = 'center_lon'");
-    const centerRadVal = await db.get("SELECT value FROM settings WHERE key = 'center_radius'");
+    const settings = await db.getSettings();
+    const centerLat = settings.center_lat;
+    const centerLon = settings.center_lon;
+    const radiusLimit = settings.center_radius;
 
-    const centerLat = Number(centerLatVal.value);
-    const centerLon = Number(centerLonVal.value);
-    const radiusLimit = Number(centerRadVal.value);
-
-    // If teacher checked in via QR, they might check out via QR or GPS. We check checkout distance.
+    // We check checkout distance
     const checkoutDistance = calculateDistance(lat, lon, centerLat, centerLon);
 
     if (checkoutDistance > radiusLimit) {
-      await db.run(`
-        INSERT INTO fake_gps_logs (teacher_id, timestamp, action_type, user_lat, user_lon, center_lat, center_lon, reason)
-        VALUES (?, ?, 'check-out-denied', ?, ?, ?, ?, ?)
-      `, [
-        teacherId,
-        new Date().toISOString(),
-        lat, lon, centerLat, centerLon,
-        `Check-out denied. Distance: ${checkoutDistance.toFixed(1)}m from center.`
-      ]);
+      await db.createFakeGpsLog({
+        teacher_id: teacherId,
+        timestamp: new Date().toISOString(),
+        action_type: 'check-out-denied',
+        user_lat: lat,
+        user_lon: lon,
+        center_lat: centerLat,
+        center_lon: centerLon,
+        reason: `Check-out denied. Distance: ${checkoutDistance.toFixed(1)}m from center.`
+      });
 
       return res.status(403).json({
         success: false,
@@ -349,47 +289,35 @@ router.post('/check-out', async (req, res) => {
     }
 
     // Get rates
-    const teacherProfile = await db.get('SELECT rate_per_session, payment_type FROM users WHERE id = ?', [teacherId]);
-    let calculatedEarnings = sessionsNum * teacherProfile.rate_per_session;
+    const teacherProfile = await db.getUserById(teacherId);
+    let calculatedEarnings = sessionsNum * (teacherProfile.rate_per_session || 0);
 
     if (isFakeGps) {
       const reasonsJoined = fakeGpsDetails.join(' | ');
-      await db.run(`
-        INSERT INTO fake_gps_logs (teacher_id, timestamp, action_type, user_lat, user_lon, center_lat, center_lon, reason)
-        VALUES (?, ?, 'anti-cheat-flag', ?, ?, ?, ?, ?)
-      `, [
-        teacherId,
-        new Date().toISOString(),
-        lat, lon, centerLat, centerLon,
-        reasonsJoined
-      ]);
-
+      await db.createFakeGpsLog({
+        teacher_id: teacherId,
+        timestamp: new Date().toISOString(),
+        action_type: 'anti-cheat-flag',
+        user_lat: lat,
+        user_lon: lon,
+        center_lat: centerLat,
+        center_lon: centerLon,
+        reason: reasonsJoined
+      });
     }
 
     // Update attendance record
     const checkoutTimeStr = new Date().toLocaleTimeString('en-US', { hour12: false });
-    await db.run(`
-      UPDATE attendance 
-      SET 
-        check_out_time = ?, 
-        check_out_lat = ?, 
-        check_out_lon = ?, 
-        sessions_count = ?, 
-        earnings = ?, 
-        status = 'completed',
-        is_fake_gps = ?,
-        fake_gps_details = ?
-      WHERE id = ?
-    `, [
-      checkoutTimeStr,
-      lat,
-      lon,
-      sessionsNum,
-      calculatedEarnings,
-      isFakeGps,
-      isFakeGps ? fakeGpsDetails.join(' | ') : null,
-      activeRecord.id
-    ]);
+    await db.updateAttendance(activeRecord.id, {
+      check_out_time: checkoutTimeStr,
+      check_out_lat: lat,
+      check_out_lon: lon,
+      sessions_count: sessionsNum,
+      earnings: calculatedEarnings,
+      status: 'completed',
+      is_fake_gps: isFakeGps,
+      fake_gps_details: isFakeGps ? fakeGpsDetails.join(' | ') : null
+    });
 
     res.json({
       success: true,
@@ -408,11 +336,7 @@ router.post('/check-out', async (req, res) => {
 router.get('/ledger', async (req, res) => {
   const teacherId = req.user.id;
   try {
-    const adjustments = await db.all(`
-      SELECT * FROM adjustments 
-      WHERE teacher_id = ?
-      ORDER BY date DESC, id DESC
-    `, [teacherId]);
+    const adjustments = await db.getAdjustmentsByTeacher(teacherId);
     res.json({ success: true, adjustments });
   } catch (error) {
     console.error('Fetch teacher ledger error:', error);
