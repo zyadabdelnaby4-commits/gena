@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Dashboard - EASYTALK Online Tutorial Services</title>
   
+  <!-- PWA Meta Tags -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#6366f1">
+  <link rel="apple-touch-icon" href="/icons/icon.svg">
+  
   <!-- Leaflet Map CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
   <!-- Stylesheets -->
@@ -14,6 +19,9 @@
 <body>
 
   <div class="admin-layout">
+    <!-- Sidebar Overlay for Mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+    
     <!-- Sidebar Navigation -->
     <aside class="sidebar no-print" id="sidebar">
       <div class="sidebar-logo">
@@ -118,7 +126,7 @@
               <span>Today's Payouts</span>
               <span style="color: var(--color-success);">💵</span>
             </div>
-            <div class="stat-value" id="statEarningsToday">$0.00</div>
+            <div class="stat-value" id="statEarningsToday">₱0.00</div>
             <div class="stat-trend trend-up">Accrued today</div>
           </div>
           
@@ -127,7 +135,7 @@
               <span>Month Payouts</span>
               <span style="color: var(--color-success);">📊</span>
             </div>
-            <div class="stat-value" id="statEarningsMonth">$0.00</div>
+            <div class="stat-value" id="statEarningsMonth">₱0.00</div>
             <div class="stat-trend trend-up" id="monthTrend">This month</div>
           </div>
           
@@ -136,7 +144,7 @@
               <span>Year Payouts</span>
               <span style="color: var(--color-success);">⏳</span>
             </div>
-            <div class="stat-value" id="statEarningsYear">$0.00</div>
+            <div class="stat-value" id="statEarningsYear">₱0.00</div>
             <div class="stat-trend trend-up" id="yearTrend">This year</div>
           </div>
         </div>
@@ -437,15 +445,15 @@
       <div id="ledgerStatsHeader" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 5px 0 15px 0;">
         <div class="glass-panel" style="padding: 10px 12px; text-align: center; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: var(--radius-md); transition: transform 0.2s ease, box-shadow 0.2s ease;">
           <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Today's Earnings</div>
-          <div id="ledgerStatToday" style="font-size: 1.15rem; font-weight: 700; color: var(--color-success);">$0.00</div>
+          <div id="ledgerStatToday" style="font-size: 1.15rem; font-weight: 700; color: var(--color-success);">₱0.00</div>
         </div>
         <div class="glass-panel" style="padding: 10px 12px; text-align: center; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: var(--radius-md); transition: transform 0.2s ease, box-shadow 0.2s ease;">
           <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Monthly Earnings</div>
-          <div id="ledgerStatMonth" style="font-size: 1.15rem; font-weight: 700; color: var(--color-primary);">$0.00</div>
+          <div id="ledgerStatMonth" style="font-size: 1.15rem; font-weight: 700; color: var(--color-primary);">₱0.00</div>
         </div>
         <div class="glass-panel" style="padding: 10px 12px; text-align: center; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: var(--radius-md); transition: transform 0.2s ease, box-shadow 0.2s ease;">
           <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Yearly Earnings</div>
-          <div id="ledgerStatYear" style="font-size: 1.15rem; font-weight: 700; color: #a855f7;">$0.00</div>
+          <div id="ledgerStatYear" style="font-size: 1.15rem; font-weight: 700; color: #a855f7;">₱0.00</div>
         </div>
       </div>
 

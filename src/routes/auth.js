@@ -14,6 +14,14 @@ router.post('/login', async (req, res) => {
   }
 
   try {
+    if (!db.db) {
+      console.error("Database connection error: db instance is null. Verify FIREBASE_SERVICE_ACCOUNT environment variable.");
+      return res.status(500).json({
+        success: false,
+        message: 'Database initialization failed: FIREBASE_SERVICE_ACCOUNT environment variable is missing or invalid. Please check Vercel settings.'
+      });
+    }
+
     const user = await db.getUserByUsername(username);
     if (!user) {
       return res.status(401).json({ success: false, message: 'Incorrect username or password.' });
@@ -64,6 +72,9 @@ router.post('/logout', (req, res) => {
 // GET /api/auth/me
 router.get('/me', verifyToken, async (req, res) => {
   try {
+    if (!db.db) {
+      return res.status(500).json({ success: false, message: 'Database connection error.' });
+    }
     const user = await db.getUserById(req.user.id);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User session not found.' });

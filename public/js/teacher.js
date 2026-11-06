@@ -55,16 +55,16 @@ async function loadTeacherDashboard() {
       // Update profile info
       document.getElementById('tProfileName').innerText = data.profile.name;
       document.getElementById('tProfilePhone').innerText = data.profile.phone || 'N/A';
-      document.getElementById('tProfileRate').innerText = `$${Number(data.profile.rate_per_session).toFixed(2)}`;
+      document.getElementById('tProfileRate').innerText = `₱${Number(data.profile.rate_per_session).toFixed(2)}`;
       document.getElementById('tProfilePayment').innerText = data.profile.payment_type + ' payout';
       document.getElementById('tProfileLastPayment').innerText = data.profile.last_received_payment || 'No payments received';
 
       // Update earnings summary
-      document.getElementById('earningsToday').innerText = `$${Number(data.stats.todayEarnings).toFixed(2)}`;
+      document.getElementById('earningsToday').innerText = `₱${Number(data.stats.todayEarnings).toFixed(2)}`;
       document.getElementById('sessionsToday').innerText = `${data.stats.todaySessions} session(s) logged`;
-      document.getElementById('earningsMonth').innerText = `$${Number(data.stats.monthlyEarnings).toFixed(2)}`;
+      document.getElementById('earningsMonth').innerText = `₱${Number(data.stats.monthlyEarnings).toFixed(2)}`;
       document.getElementById('sessionsMonth').innerText = `${data.stats.monthlySessions} session(s) logged`;
-      document.getElementById('earningsYear').innerText = `$${Number(data.stats.yearlyEarnings).toFixed(2)}`;
+      document.getElementById('earningsYear').innerText = `₱${Number(data.stats.yearlyEarnings).toFixed(2)}`;
       document.getElementById('sessionsYear').innerText = `${data.stats.yearlySessions} session(s) logged`;
 
       // Cache center coordinates
@@ -76,6 +76,7 @@ async function loadTeacherDashboard() {
       initTeacherMap();
       startLocationTracking();
       loadTeacherLedger();
+      loadSessions();
 
       // Configure Active Attendance UI status
       const banner = document.getElementById('activeStatusBanner');
@@ -422,8 +423,7 @@ async function performCheckout() {
 async function loadTeacherLedger() {
   try {
     const res = await fetch('/api/teacher/ledger');
-    const data = await res.json();
-    if (data.success) {
+    const data = await res.json();    if (data.success) {
       const tbody = document.getElementById('ledgerTableBody');
       tbody.innerHTML = '';
 
@@ -440,9 +440,9 @@ async function loadTeacherLedger() {
           ? '<span class="badge badge-success" style="font-size:0.75rem; padding:2px 8px;">Bonus</span>' 
           : '<span class="badge badge-danger" style="font-size:0.75rem; padding:2px 8px;">Advance</span>';
 
-        const amountText = adj.type === 'bonus' 
-          ? `<span style="color:var(--color-success); font-weight:600;">+$${Math.abs(adj.amount).toFixed(2)}</span>`
-          : `<span style="color:var(--color-danger); font-weight:600;">-$${Math.abs(adj.amount).toFixed(2)}</span>`;
+        let amountText = adj.type === 'bonus' 
+          ? `<span style="color:var(--color-success); font-weight:600;">+₱${Math.abs(adj.amount).toFixed(2)}</span>`
+          : `<span style="color:var(--color-danger); font-weight:600;">-₱${Math.abs(adj.amount).toFixed(2)}</span>`;
 
         const statusBadge = adj.payment_status === 'paid'
           ? `<span class="badge badge-success" style="font-size:0.75rem; padding:2px 8px;">Settled</span>`
@@ -460,5 +460,120 @@ async function loadTeacherLedger() {
     }
   } catch (error) {
     console.error('Error fetching teacher ledger:', error);
+  }
+}
+
+// ----------------------------------------------------
+// SESSIONS (TIME SLOTS) MANAGEMENT
+// ----------------------------------------------------
+
+// Set today's date as default for the date picker
+document.addEventListener('DOMContentLoaded', () => {
+  const today = new Date().toISOString().split('T')[0];
+  const slotDate = document.getElementById('slotDate');
+  if (slotDate) slotDate.value = today;
+});
+
+async function loadSessions() {
+  const tbody = document.getElementById('sessionsTableBody');
+  if (!tbody) return;
+  try {
+    const res = await fetch('/api/teacher/time-slots');
+    const data = await res.json();
+    tbody.innerHTML = '';
+
+    if (!data.success || data.slots.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="padding: 20px 5px; text-align: center; color: var(--text-muted);">No sessions logged yet. Add your first session above.</td></tr>';
+      return;
+    }
+
+    data.slots.forEach(slot => {
+      const tr = document.createElement('tr');
+      tr.style = 'border-bottom: 1px solid rgba(255,255,255,0.05);';
+
+      const timeStr = slot.end_time ? `${slot.start_time} → ${slot.end_time}` : slot.start_time;
+
+      const payBadge = slot.payment_status === 'paid'
+        ? `<span style="background:rgba(16,185,129,0.15); color:#10b981; border-radius:6px; padding:2px 7px; font-size:0.75rem;">Paid</span>`
+        : `<span style="background:rgba(239,68,68,0.15); color:#ef4444; border-radius:6px; padding:2px 7px; font-size:0.75rem;">Unpaid</span>`;
+
+      tr.innerHTML = `
+        <td style="padding: 9px 5px;"><code style="font-size:0.8rem;">${slot.date}</code></td>
+        <td style="padding: 9px 5px; white-space:nowrap; color:var(--text-secondary);">${timeStr}</td>
+        <td style="padding: 9px 5px; font-weight:700; color:#10b981;">EGP ${Number(slot.price).toFixed(2)}</td>
+        <td style="padding: 9px 5px;">${payBadge}</td>
+        <td style="padding: 9px 5px; color:var(--text-muted); max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${slot.notes || ''}">${slot.notes || '-'}</td>
+        <td style="padding: 9px 5px;">
+          <button onclick="deleteSession('${slot.id}')" style="background:rgba(239,68,68,0.15); color:#ef4444; border:none; border-radius:6px; padding:4px 8px; cursor:pointer; font-size:0.8rem;">🗑</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    console.error('Error loading sessions:', err);
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="padding:20px 5px; text-align:center; color:var(--text-muted);">Error loading sessions.</td></tr>';
+  }
+}
+
+async function addSession() {
+  const date = document.getElementById('slotDate').value;
+  const startTime = document.getElementById('slotStartTime').value;
+  const endTime = document.getElementById('slotEndTime').value;
+  const price = document.getElementById('slotPrice').value;
+  const notes = document.getElementById('slotNotes').value;
+
+  if (!date || !startTime || price === '') {
+    Auth.showToast('Please fill in Date, Start Time, and Price.', 'warning');
+    return;
+  }
+  if (Number(price) < 0) {
+    Auth.showToast('Price cannot be negative.', 'warning');
+    return;
+  }
+
+  Auth.setLoading(true);
+  try {
+    const res = await fetch('/api/teacher/time-slots', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date, start_time: startTime, end_time: endTime || null, price: Number(price), notes })
+    });
+    const data = await res.json();
+    Auth.setLoading(false);
+
+    if (data.success) {
+      Auth.showToast('Session saved successfully!', 'success');
+      // Reset form fields (keep date)
+      document.getElementById('slotStartTime').value = '';
+      document.getElementById('slotEndTime').value = '';
+      document.getElementById('slotPrice').value = '';
+      document.getElementById('slotNotes').value = '';
+      loadSessions();
+    } else {
+      Auth.showToast(data.message || 'Failed to save session.', 'error');
+    }
+  } catch (err) {
+    Auth.setLoading(false);
+    Auth.showToast('Network error saving session.', 'error');
+    console.error(err);
+  }
+}
+
+async function deleteSession(id) {
+  if (!confirm('Delete this session?')) return;
+  Auth.setLoading(true);
+  try {
+    const res = await fetch(`/api/teacher/time-slots/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    Auth.setLoading(false);
+    if (data.success) {
+      Auth.showToast('Session deleted.', 'success');
+      loadSessions();
+    } else {
+      Auth.showToast(data.message || 'Failed to delete.', 'error');
+    }
+  } catch (err) {
+    Auth.setLoading(false);
+    Auth.showToast('Network error.', 'error');
   }
 }

@@ -9,3 +9,5 @@ yarn-error.log*
 serviceAccountKey.json
 .vs/
 .vscode/
+
+.vercel

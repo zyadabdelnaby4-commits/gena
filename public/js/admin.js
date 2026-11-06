@@ -57,11 +57,19 @@ function switchTab(tabId, element) {
   } else if (tabId === 'security') {
     fetchSecurityLogs();
   }
+
+  if (window.innerWidth <= 992) {
+    document.getElementById('sidebar').classList.remove('active');
+    const overlay = document.getElementById('sidebarOverlay');
+    if (overlay) overlay.classList.remove('active');
+  }
 }
 
 // Toggle Sidebar on Mobile viewports
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('active');
+  const overlay = document.getElementById('sidebarOverlay');
+  if (overlay) overlay.classList.toggle('active');
 }
 
 // ----------------------------------------------------
@@ -78,9 +86,9 @@ async function loadDashboard() {
       // Set metrics
       document.getElementById('statPresentToday').innerText = data.stats.presentToday;
       document.getElementById('statSessionsToday').innerText = data.stats.sessionsToday;
-      document.getElementById('statEarningsToday').innerText = `$${Number(data.stats.earningsToday).toFixed(2)}`;
-      document.getElementById('statEarningsMonth').innerText = `$${Number(data.stats.earningsMonth).toFixed(2)}`;
-      document.getElementById('statEarningsYear').innerText = `$${Number(data.stats.earningsYear).toFixed(2)}`;
+      document.getElementById('statEarningsToday').innerText = `₱${Number(data.stats.earningsToday).toFixed(2)}`;
+      document.getElementById('statEarningsMonth').innerText = `₱${Number(data.stats.earningsMonth).toFixed(2)}`;
+      document.getElementById('statEarningsYear').innerText = `₱${Number(data.stats.earningsYear).toFixed(2)}`;
 
       // Render Charts
       renderTopTeachersChart(data.charts.topTeachers);
@@ -251,18 +259,18 @@ async function fetchTeachers() {
           <td><strong>${teacher.name}</strong></td>
           <td><code>${teacher.username}</code></td>
           <td>${teacher.phone || '-'}</td>
-          <td>$${Number(teacher.rate_per_session).toFixed(2)}</td>
+          <td>₱${Number(teacher.rate_per_session).toFixed(2)}</td>
           <td><span class="badge badge-info">${teacher.payment_type === 'session' ? 'Per Session' : 'Monthly'}</span></td>
-          <td style="color: var(--color-danger); font-weight:600;">$${Number(teacher.unpaid_earnings).toFixed(2)}</td>
-          <td style="color: var(--color-success); font-weight:600;">$${Number(teacher.paid_earnings).toFixed(2)}</td>
+          <td style="color: var(--color-danger); font-weight:600;">₱${Number(teacher.unpaid_earnings).toFixed(2)}</td>
+          <td style="color: var(--color-success); font-weight:600;">₱${Number(teacher.paid_earnings).toFixed(2)}</td>
           <td>${teacher.total_sessions || 0}</td>
           <td>
             <div class="action-buttons">
-              <button class="action-btn edit" onclick="openTeacherModal(${teacher.id})" title="Edit Teacher">✏️</button>
-              <button class="action-btn edit" style="background:#8b5cf6;" onclick="openAdjustmentsModal(${teacher.id}, '${teacher.name.replace(/'/g, "\\'")}')" title="Financial Ledger (Advances & Bonuses)">💵 Ledger</button>
-              <button class="action-btn delete" onclick="deleteTeacher(${teacher.id})" title="Delete Teacher">🗑️</button>
+              <button class="action-btn edit" onclick="openTeacherModal('${teacher.id}')" title="Edit Teacher">✏️</button>
+              <button class="action-btn edit" style="background:#8b5cf6;" onclick="openAdjustmentsModal('${teacher.id}', '${teacher.name.replace(/'/g, "\\'")}')" title="Financial Ledger (Advances & Bonuses)">💵 Ledger</button>
+              <button class="action-btn delete" onclick="deleteTeacher('${teacher.id}')" title="Delete Teacher">🗑️</button>
               ${teacher.unpaid_earnings > 0 ? 
-                `<button class="action-btn pay" onclick="settleTeacherPayments(${teacher.id})" title="Settle Unpaid Payouts">💰 Settle</button>` : 
+                `<button class="action-btn pay" onclick="settleTeacherPayments('${teacher.id}')" title="Settle Unpaid Payouts">💰 Settle</button>` : 
                 `<button class="action-btn pay" style="opacity:0.3; cursor:default;" disabled title="All Settled">✅</button>`
               }
             </div>
@@ -414,13 +422,13 @@ async function openAdjustmentsModal(teacherId, name) {
   
   const teacher = cachedTeachers.find(t => t.id === teacherId);
   if (teacher) {
-    document.getElementById('ledgerStatToday').innerText = `$${Number(teacher.earnings_today).toFixed(2)}`;
-    document.getElementById('ledgerStatMonth').innerText = `$${Number(teacher.earnings_month).toFixed(2)}`;
-    document.getElementById('ledgerStatYear').innerText = `$${Number(teacher.earnings_year).toFixed(2)}`;
+    document.getElementById('ledgerStatToday').innerText = `₱${Number(teacher.earnings_today).toFixed(2)}`;
+    document.getElementById('ledgerStatMonth').innerText = `₱${Number(teacher.earnings_month).toFixed(2)}`;
+    document.getElementById('ledgerStatYear').innerText = `₱${Number(teacher.earnings_year).toFixed(2)}`;
   } else {
-    document.getElementById('ledgerStatToday').innerText = '$0.00';
-    document.getElementById('ledgerStatMonth').innerText = '$0.00';
-    document.getElementById('ledgerStatYear').innerText = '$0.00';
+    document.getElementById('ledgerStatToday').innerText = '₱0.00';
+    document.getElementById('ledgerStatMonth').innerText = '₱0.00';
+    document.getElementById('ledgerStatYear').innerText = '₱0.00';
   }
   
   modal.classList.add('active');
@@ -453,8 +461,8 @@ async function fetchAdjustmentsList(teacherId) {
           : '<span class="badge badge-danger">Advance</span>';
           
         let amountText = adj.type === 'bonus' 
-          ? `<span style="color:var(--color-success); font-weight:600;">+$${Math.abs(adj.amount).toFixed(2)}</span>`
-          : `<span style="color:var(--color-danger); font-weight:600;">-$${Math.abs(adj.amount).toFixed(2)}</span>`;
+          ? `<span style="color:var(--color-success); font-weight:600;">+₱${Math.abs(adj.amount).toFixed(2)}</span>`
+          : `<span style="color:var(--color-danger); font-weight:600;">-₱${Math.abs(adj.amount).toFixed(2)}</span>`;
           
         let statusBadge = adj.payment_status === 'paid'
           ? `<span class="badge badge-success" title="Paid on ${adj.payment_date.slice(0, 10)}">Settled</span>`
