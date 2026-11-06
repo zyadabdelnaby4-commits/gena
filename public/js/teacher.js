@@ -500,7 +500,7 @@ async function loadSessions() {
       tr.innerHTML = `
         <td style="padding: 9px 5px;"><code style="font-size:0.8rem;">${slot.date}</code></td>
         <td style="padding: 9px 5px; white-space:nowrap; color:var(--text-secondary);">${timeStr}</td>
-        <td style="padding: 9px 5px; font-weight:700; color:#10b981;">EGP ${Number(slot.price).toFixed(2)}</td>
+        <td style="padding: 9px 5px; font-weight:700; color:#10b981;">₱${Number(slot.price).toFixed(2)}</td>
         <td style="padding: 9px 5px;">${payBadge}</td>
         <td style="padding: 9px 5px; color:var(--text-muted); max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${slot.notes || ''}">${slot.notes || '-'}</td>
         <td style="padding: 9px 5px;">
