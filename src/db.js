@@ -144,6 +144,121 @@ const getAllTeachers = async () => {
 };
 
 // ----------------------------------------------------
+// TIME SLOTS / MANUAL BOOKINGS
+// ----------------------------------------------------
+const createTimeSlot = async (data) => {
+  if (!db) return { id: null };
+  const ref = await db.collection('time_slots').add({
+    teacher_id: data.teacher_id,
+    date: data.date,
+    start_time: data.start_time,
+    end_time: data.end_time || null,
+    price: Number(data.price) || 0,
+    status: data.status || 'booked', // 'booked' | 'available'
+    notes: data.notes || '',
+    payment_status: data.payment_status || 'unpaid',
+    payment_date: data.payment_date || null,
+    created_at: new Date().toISOString()
+  });
+  return { id: ref.id };
+};
+
+const updateTimeSlot = async (id, data) => {
+  if (!db) return;
+  const updates = {};
+  if (data.start_time !== undefined) updates.start_time = data.start_time;
+  if (data.end_time !== undefined) updates.end_time = data.end_time;
+  if (data.price !== undefined) updates.price = Number(data.price);
+  if (data.status !== undefined) updates.status = data.status;
+  if (data.notes !== undefined) updates.notes = data.notes;
+  if (data.payment_status !== undefined) updates.payment_status = data.payment_status;
+  if (data.payment_date !== undefined) updates.payment_date = data.payment_date;
+  await db.collection('time_slots').doc(id).update(updates);
+};
+
+const deleteTimeSlot = async (id) => {
+  if (!db) return;
+  await db.collection('time_slots').doc(id).delete();
+};
+
+const getTimeSlotsByTeacher = async (teacherId, filters = {}) => {
+  if (!db) return [];
+  let query = db.collection('time_slots').where('teacher_id', '==', teacherId);
+  if (filters.date) query = query.where('date', '==', filters.date);
+  const snapshot = await query.get();
+  const slots = [];
+  snapshot.forEach(doc => slots.push(mapDoc(doc)));
+  if (filters.start_date) {
+    slots.filter(s => s.date >= filters.start_date);
+  }
+  if (filters.end_date) {
+    slots.filter(s => s.date <= filters.end_date);
+  }
+  slots.sort((a, b) => {
+    if (a.date !== b.date) return b.date.localeCompare(a.date);
+    return (a.start_time || '').localeCompare(b.start_time || '');
+  });
+  return slots;
+};
+
+const getAllTimeSlots = async (filters = {}) => {
+  if (!db) return [];
+  let query = db.collection('time_slots');
+  if (filters.teacher_id) query = query.where('teacher_id', '==', filters.teacher_id);
+  if (filters.status) query = query.where('status', '==', filters.status);
+  if (filters.payment_status) query = query.where('payment_status', '==', filters.payment_status);
+  if (filters.date) query = query.where('date', '==', filters.date);
+
+  const snapshot = await query.get();
+  let slots = [];
+  snapshot.forEach(doc => slots.push(mapDoc(doc)));
+
+  if (filters.start_date) slots = slots.filter(s => s.date >= filters.start_date);
+  if (filters.end_date) slots = slots.filter(s => s.date <= filters.end_date);
+
+  // Join teacher info
+  const usersSnapshot = await db.collection('users').get();
+  const usersMap = {};
+  usersSnapshot.forEach(doc => { usersMap[doc.id] = doc.data(); });
+
+  slots = slots.map(slot => ({
+    ...slot,
+    teacher_name: usersMap[slot.teacher_id]?.name || 'Unknown',
+    teacher_phone: usersMap[slot.teacher_id]?.phone || ''
+  }));
+
+  slots.sort((a, b) => {
+    if (a.date !== b.date) return b.date.localeCompare(a.date);
+    return (a.start_time || '').localeCompare(b.start_time || '');
+  });
+  return slots;
+};
+
+const payTimeSlot = async (id, payDate) => {
+  if (!db) return;
+  await db.collection('time_slots').doc(id).update({
+    payment_status: 'paid',
+    payment_date: payDate
+  });
+};
+
+const payAllTeacherTimeSlots = async (teacherId, payDate) => {
+  if (!db) return { changes: 0 };
+  const snapshot = await db.collection('time_slots')
+    .where('teacher_id', '==', teacherId)
+    .where('payment_status', '==', 'unpaid')
+    .where('status', '==', 'booked')
+    .get();
+  if (snapshot.empty) return { changes: 0 };
+  const batch = db.batch();
+  snapshot.docs.forEach(doc => {
+    batch.update(doc.ref, { payment_status: 'paid', payment_date: payDate });
+  });
+  await batch.commit();
+  return { changes: snapshot.size };
+};
+
+// ----------------------------------------------------
 // ATTENDANCE
 // ----------------------------------------------------
 const createAttendance = async (data) => {
@@ -650,7 +765,10 @@ const getTeachersListWithStats = async (todayStr) => {
 // DATABASE SEEDING / INITIALIZATION
 // ----------------------------------------------------
 const initDB = async () => {
-  if (!db) return;
+  if (!db) {
+    console.warn("WARNING: Cannot initialize database. Firebase db instance is null. Please configure FIREBASE_SERVICE_ACCOUNT in Vercel environment variables.");
+    return;
+  }
   try {
     const centerLat = await getSetting('center_lat');
     if (!centerLat) {
@@ -722,5 +840,12 @@ module.exports = {
   getTeacherStats,
   getAdminDashboardStats,
   getTeachersListWithStats,
+  createTimeSlot,
+  updateTimeSlot,
+  deleteTimeSlot,
+  getTimeSlotsByTeacher,
+  getAllTimeSlots,
+  payTimeSlot,
+  payAllTeacherTimeSlots,
   initDB
 };

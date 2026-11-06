@@ -344,4 +344,109 @@ router.get('/ledger', async (req, res) => {
   }
 });
 
+// ----------------------------------------------------
+// TIME SLOTS (MANUAL BOOKINGS)
+// ----------------------------------------------------
+
+// GET /api/teacher/time-slots - Get teacher's own time slots
+router.get('/time-slots', async (req, res) => {
+  const teacherId = req.user.id;
+  const { date, start_date, end_date } = req.query;
+  try {
+    const filters = {};
+    if (date) filters.date = date;
+    if (start_date) filters.start_date = start_date;
+    if (end_date) filters.end_date = end_date;
+    const slots = await db.getTimeSlotsByTeacher(teacherId, filters);
+    res.json({ success: true, slots });
+  } catch (error) {
+    console.error('Fetch time slots error:', error);
+    res.status(500).json({ success: false, message: 'Server error retrieving time slots.' });
+  }
+});
+
+// POST /api/teacher/time-slots - Add a manual booked time slot
+router.post('/time-slots', async (req, res) => {
+  const teacherId = req.user.id;
+  const { date, start_time, end_time, price, notes } = req.body;
+
+  if (!date || !start_time || price === undefined) {
+    return res.status(400).json({ success: false, message: 'Date, start time, and price are required.' });
+  }
+
+  const priceNum = Number(price);
+  if (isNaN(priceNum) || priceNum < 0) {
+    return res.status(400).json({ success: false, message: 'Price must be a non-negative number.' });
+  }
+
+  try {
+    const result = await db.createTimeSlot({
+      teacher_id: teacherId,
+      date,
+      start_time,
+      end_time: end_time || null,
+      price: priceNum,
+      status: 'booked',
+      notes: notes || ''
+    });
+    res.json({ success: true, message: 'Time slot booked successfully.', slotId: result.id });
+  } catch (error) {
+    console.error('Create time slot error:', error);
+    res.status(500).json({ success: false, message: 'Server error creating time slot.' });
+  }
+});
+
+// PUT /api/teacher/time-slots/:id - Edit a time slot
+router.put('/time-slots/:id', async (req, res) => {
+  const teacherId = req.user.id;
+  const { id } = req.params;
+  const { date, start_time, end_time, price, status, notes } = req.body;
+
+  if (!start_time || price === undefined) {
+    return res.status(400).json({ success: false, message: 'Start time and price are required.' });
+  }
+
+  const priceNum = Number(price);
+  if (isNaN(priceNum) || priceNum < 0) {
+    return res.status(400).json({ success: false, message: 'Price must be a non-negative number.' });
+  }
+
+  try {
+    // Ensure the slot belongs to this teacher
+    const existing = (await db.getTimeSlotsByTeacher(teacherId)).find(s => s.id === id);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Time slot not found.' });
+    }
+
+    await db.updateTimeSlot(id, {
+      start_time,
+      end_time: end_time || null,
+      price: priceNum,
+      status: status || 'booked',
+      notes: notes || ''
+    });
+    res.json({ success: true, message: 'Time slot updated successfully.' });
+  } catch (error) {
+    console.error('Update time slot error:', error);
+    res.status(500).json({ success: false, message: 'Server error updating time slot.' });
+  }
+});
+
+// DELETE /api/teacher/time-slots/:id - Delete a time slot
+router.delete('/time-slots/:id', async (req, res) => {
+  const teacherId = req.user.id;
+  const { id } = req.params;
+  try {
+    const existing = (await db.getTimeSlotsByTeacher(teacherId)).find(s => s.id === id);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Time slot not found.' });
+    }
+    await db.deleteTimeSlot(id);
+    res.json({ success: true, message: 'Time slot deleted successfully.' });
+  } catch (error) {
+    console.error('Delete time slot error:', error);
+    res.status(500).json({ success: false, message: 'Server error deleting time slot.' });
+  }
+});
+
 module.exports = router;

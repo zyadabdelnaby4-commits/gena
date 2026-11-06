@@ -169,7 +169,7 @@ router.post('/teachers/:id/adjustments', async (req, res) => {
       payment_status: 'unpaid'
     });
 
-    res.json({ success: true, message: `Successfully added ${type} of $${amt.toFixed(2)}.` });
+    res.json({ success: true, message: `Successfully added ${type} of ₱${amt.toFixed(2)}.` });
   } catch (error) {
     console.error('Add adjustment error:', error);
     res.status(500).json({ success: false, message: 'Error logging financial adjustment.' });
@@ -283,7 +283,7 @@ router.post('/teachers/:id/pay-all', async (req, res) => {
 
     res.json({ 
       success: true, 
-      message: `Cleared payouts for ${attRes.changes} sessions and ${adjRes.changes} adjustments. Total: $${finalAmount.toFixed(2)}`,
+      message: `Cleared payouts for ${attRes.changes} sessions and ${adjRes.changes} adjustments. Total: ₱${finalAmount.toFixed(2)}`,
       recordsCleared: totalChanges,
       amountPaid: finalAmount
     });
@@ -323,6 +323,138 @@ router.get('/fake-gps-logs', async (req, res) => {
   } catch (error) {
     console.error('Get fake GPS logs error:', error);
     res.status(500).json({ success: false, message: 'Server error fetching verification logs.' });
+  }
+});
+
+// ----------------------------------------------------
+// TIME SLOTS ADMIN MANAGEMENT
+// ----------------------------------------------------
+
+// GET /api/admin/time-slots - List all time slots with optional filters
+router.get('/time-slots', async (req, res) => {
+  const { teacher_id, date, start_date, end_date, status, payment_status } = req.query;
+  try {
+    const filters = {};
+    if (teacher_id) filters.teacher_id = teacher_id;
+    if (date) filters.date = date;
+    if (start_date) filters.start_date = start_date;
+    if (end_date) filters.end_date = end_date;
+    if (status) filters.status = status;
+    if (payment_status) filters.payment_status = payment_status;
+    const slots = await db.getAllTimeSlots(filters);
+    res.json({ success: true, slots });
+  } catch (error) {
+    console.error('Admin get time slots error:', error);
+    res.status(500).json({ success: false, message: 'Server error retrieving time slots.' });
+  }
+});
+
+// POST /api/admin/time-slots - Admin manually adds a booked slot for any teacher
+router.post('/time-slots', async (req, res) => {
+  const { teacher_id, date, start_time, end_time, price, notes } = req.body;
+
+  if (!teacher_id || !date || !start_time || price === undefined) {
+    return res.status(400).json({ success: false, message: 'teacher_id, date, start_time, and price are required.' });
+  }
+
+  const priceNum = Number(price);
+  if (isNaN(priceNum) || priceNum < 0) {
+    return res.status(400).json({ success: false, message: 'Price must be a non-negative number.' });
+  }
+
+  try {
+    const teacher = await db.getUserById(teacher_id);
+    if (!teacher || teacher.role !== 'teacher') {
+      return res.status(404).json({ success: false, message: 'Teacher not found.' });
+    }
+    const result = await db.createTimeSlot({
+      teacher_id,
+      date,
+      start_time,
+      end_time: end_time || null,
+      price: priceNum,
+      status: 'booked',
+      notes: notes || ''
+    });
+    res.json({ success: true, message: 'Time slot booked successfully.', slotId: result.id });
+  } catch (error) {
+    console.error('Admin create time slot error:', error);
+    res.status(500).json({ success: false, message: 'Server error creating time slot.' });
+  }
+});
+
+// PUT /api/admin/time-slots/:id - Admin edits any time slot
+router.put('/time-slots/:id', async (req, res) => {
+  const { id } = req.params;
+  const { start_time, end_time, price, status, notes } = req.body;
+
+  if (!start_time || price === undefined) {
+    return res.status(400).json({ success: false, message: 'start_time and price are required.' });
+  }
+
+  const priceNum = Number(price);
+  if (isNaN(priceNum) || priceNum < 0) {
+    return res.status(400).json({ success: false, message: 'Price must be a non-negative number.' });
+  }
+
+  try {
+    await db.updateTimeSlot(id, {
+      start_time,
+      end_time: end_time || null,
+      price: priceNum,
+      status: status || 'booked',
+      notes: notes || ''
+    });
+    res.json({ success: true, message: 'Time slot updated successfully.' });
+  } catch (error) {
+    console.error('Admin update time slot error:', error);
+    res.status(500).json({ success: false, message: 'Server error updating time slot.' });
+  }
+});
+
+// DELETE /api/admin/time-slots/:id - Admin deletes a time slot
+router.delete('/time-slots/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await db.deleteTimeSlot(id);
+    res.json({ success: true, message: 'Time slot deleted successfully.' });
+  } catch (error) {
+    console.error('Admin delete time slot error:', error);
+    res.status(500).json({ success: false, message: 'Server error deleting time slot.' });
+  }
+});
+
+// POST /api/admin/time-slots/:id/pay - Pay a single time slot
+router.post('/time-slots/:id/pay', async (req, res) => {
+  const { id } = req.params;
+  const payDate = new Date().toISOString();
+  try {
+    await db.payTimeSlot(id, payDate);
+    res.json({ success: true, message: 'Time slot payment recorded.' });
+  } catch (error) {
+    console.error('Pay time slot error:', error);
+    res.status(500).json({ success: false, message: 'Server error marking payment.' });
+  }
+});
+
+// POST /api/admin/teachers/:id/pay-all-slots - Settle all unpaid booked slots for a teacher
+router.post('/teachers/:id/pay-all-slots', async (req, res) => {
+  const { id } = req.params;
+  const payDate = new Date().toISOString();
+  try {
+    const teacher = await db.getUserById(id);
+    if (!teacher || teacher.role !== 'teacher') {
+      return res.status(404).json({ success: false, message: 'Teacher not found.' });
+    }
+    const result = await db.payAllTeacherTimeSlots(id, payDate);
+    res.json({
+      success: true,
+      message: `Cleared payment for ${result.changes} time slot(s).`,
+      recordsCleared: result.changes
+    });
+  } catch (error) {
+    console.error('Pay all time slots error:', error);
+    res.status(500).json({ success: false, message: 'Server error settling time slot payments.' });
   }
 });
 
